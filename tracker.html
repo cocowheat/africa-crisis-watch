@@ -45,7 +45,7 @@
   <button class="btn btn-ghost loadmore" id="more" style="display:none">Load more</button>
 </main>
 
-<script src="data/news.js"></script>
+<script>document.write('<script src="data/news.js?v=' + Math.floor(Date.now()/36e5) + '"><\/script>');</script>
 <script src="assets/js/app.js"></script>
 <script>
 (function () {
