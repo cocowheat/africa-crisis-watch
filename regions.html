@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regional Profiles — Crisis Watch Africa</title>
+<meta name="description" content="Security profiles for the Sahel, West Africa, the Horn of Africa, Central Africa, North Africa and Southern Africa.">
+<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+
+<main class="wrap">
+  <div style="padding:34px 0 20px">
+    <div class="kicker">Regions &amp; Countries</div>
+    <h1 style="font-family:var(--font-serif);font-size:clamp(28px,3.4vw,40px);margin:10px 0 8px;font-weight:700;letter-spacing:-.015em">
+      Regional profiles
+    </h1>
+    <p class="muted" style="margin:0;max-width:70ch">
+      Six conflict belts, tracked separately. Each profile lists the countries that appear most
+      often, the dominant incident type and the latest security reporting from that region.
+    </p>
+  </div>
+
+  <div class="region-grid" id="grid" style="margin-bottom:34px"></div>
+  <div id="detail"></div>
+</main>
+
+<script src="data/news.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var CW = window.CW, S = CW.STATS;
+  CW.mountChrome("regions");
+
+  var REGION_NOTE = {
+    "Sahel": "Jihadist Expansion across Mali, Burkina Faso and Niger is compounding with military-junta governance crises, making this the fastest-growing terrorism theatre in the world.",
+    "West Africa": "The ISWAP / Boko Haram insurgency in north-east Nigeria overlaps with an armed-bandit kidnapping economy in the north-central states, and is spilling into Benin and Togo.",
+    "Horn of Africa": "Al-Shabaab keeps up its campaign in Somalia, the Sudan war has produced a mass displacement crisis, and Ethiopia faces internal armed conflict alongside tension with Eritrea.",
+    "Central Africa": "More than a hundred armed groups contest mining and territory in eastern DR Congo; M23 and ADF cross-border activity keeps the Great Lakes region unstable.",
+    "North Africa": "Libya's political split and militias, the northward spillover of Sahel conflict, and transnational smuggling and human-trafficking networks along the Mediterranean.",
+    "Southern Africa": "The Islamic State-linked insurgency in Mozambique's Cabo Delgado, plus transnational organised crime and resource-driven conflict across the sub-region."
+  };
+
+  var regions = CW.REGION_ORDER.filter(function (r) { return (S.by_region || {})[r]; });
+  var rmax = Math.max.apply(null, regions.map(function (r) { return S.by_region[r]; }).concat([1]));
+
+  document.getElementById("grid").innerHTML = regions.map(function (r) {
+    var list = CW.filterItems({ region: r });
+    var cats = {};
+    list.forEach(function (it) { cats[it.category] = (cats[it.category] || 0) + 1; });
+    var topCat = CW.CAT_ORDER.filter(function (c) { return cats[c]; })
+      .sort(function (a, b) { return cats[b] - cats[a]; })[0] || "other";
+    return '<a class="region-card" href="?region=' + encodeURIComponent(r) + '">' +
+      '<div class="rc-top"><h3>' + r + '</h3><span class="rc-en">' + list.length + ' records</span></div>' +
+      '<div class="rc-num" style="color:' + CW.regionColor(r) + '">' + S.by_region[r] + '</div>' +
+      '<div class="rc-sub">' + REGION_NOTE[r] + '</div>' +
+      '<div class="rc-bar"><i style="width:' + (S.by_region[r] / rmax * 100) + '%;background:' +
+      CW.regionColor(r) + '"></i></div>' +
+      '<div class="tags" style="margin-top:14px"><span class="tag" style="color:' +
+      CW.catColor(topCat) + '">Dominant type · ' + CW.catLabel(topCat) + '</span></div>' +
+      '</a>';
+  }).join("");
+
+  var sel = CW.getParam("region");
+  if (!sel || regions.indexOf(sel) === -1) return;
+
+  var list = CW.filterItems({ region: sel });
+  var cats = {}, ctry = {}, fatals = 0;
+  list.forEach(function (it) {
+    cats[it.category] = (cats[it.category] || 0) + 1;
+    if (it.country) ctry[it.country] = (ctry[it.country] || 0) + 1;
+    fatals += it.fatalities;
+  });
+  var topCountries = Object.keys(ctry).sort(function (a, b) { return ctry[b] - ctry[a]; }).slice(0, 6);
+  var cmax = Math.max.apply(null, topCountries.map(function (c) { return ctry[c]; }).concat([1]));
+
+  document.getElementById("detail").innerHTML =
+    '<section class="section" style="border-top:1px solid var(--line)">' +
+    '<div class="section-head"><div><div class="kicker">Regional Profile</div>' +
+    '<h2>' + CW.esc(sel) + '</h2></div>' +
+    '<a class="more" href="tracker.html?region=' + encodeURIComponent(sel) +
+    '">Every record from this region &rarr;</a></div>' +
+    '<div class="cols"><div>' +
+    '<ul class="feed">' + CW.feedHtml(list.slice(0, 10)) + '</ul>' +
+    '</div><aside>' +
+    '<div class="side-block"><h4>Regional mix</h4>' +
+    '<div class="mono muted" style="font-size:12px;margin-bottom:10px">' + list.length +
+    ' records · ' + fatals + ' reported killed</div>' +
+    CW.CAT_ORDER.filter(function (c) { return cats[c]; }).map(function (c) {
+      return '<div class="row" style="display:flex;justify-content:space-between;font-size:13.5px;margin:8px 0">' +
+        '<span>' + CW.catLabel(c) + '</span><b>' + cats[c] + '</b></div>' +
+        '<div class="bar" style="height:4px;background:#f2eee8;margin-bottom:6px"><i style="display:block;height:100%;width:' +
+        (cats[c] / list.length * 100) + '%;background:' + CW.catColor(c) + '"></i></div>';
+    }).join("") + '</div>' +
+    '<div class="side-block"><h4>Most frequent countries</h4><ul class="rank">' +
+    topCountries.map(function (c) {
+      return '<li><div class="row"><span>' + CW.esc(c) + '</span><b>' + ctry[c] + '</b></div>' +
+        '<div class="bar"><i style="width:' + (ctry[c] / cmax * 100) + '%;background:' +
+        CW.regionColor(sel) + '"></i></div></li>';
+    }).join("") + '</ul></div>' +
+    '</aside></div></section>';
+
+  var el = document.getElementById("detail");
+  if (el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
+})();
+</script>
+</body>
+</html>

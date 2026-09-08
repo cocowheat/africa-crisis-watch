@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crisis Watch Africa — Tracking Terrorism, Armed Conflict and Abduction in Africa</title>
+<meta name="description" content="An open early-warning board tracking terrorism, armed conflict and kidnapping across the Sahel, West Africa, the Horn, Central, North and Southern Africa.">
+<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+
+<main class="wrap">
+
+  <!-- Hero -->
+  <section class="hero" id="hero"></section>
+
+  <!-- Headline numbers -->
+  <section class="stats" id="stats"></section>
+
+  <!-- Regional coverage -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <div class="kicker">Regional Coverage</div>
+        <h2>Where the violence is concentrated</h2>
+      </div>
+      <a class="more" href="regions.html">Browse all regional profiles &rarr;</a>
+    </div>
+    <div class="region-grid" id="regionGrid"></div>
+  </section>
+
+  <!-- Latest + sidebar -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <div class="kicker">Latest Alerts</div>
+        <h2>Newest crisis updates</h2>
+      </div>
+      <a class="more" href="tracker.html">Open the full tracker &rarr;</a>
+    </div>
+    <div class="cols">
+      <div>
+        <ul class="feed" id="latestFeed"></ul>
+        <a class="btn btn-ghost loadmore" href="tracker.html" style="text-align:center">Browse every record</a>
+      </div>
+      <aside>
+        <div class="side-block">
+          <h4>Highest-risk countries</h4>
+          <ul class="rank" id="countryRank"></ul>
+        </div>
+        <div class="side-block">
+          <h4>Incident type mix</h4>
+          <div id="catChart"></div>
+        </div>
+        <div class="side-block">
+          <h4>Leading sources</h4>
+          <ul class="rank" id="sourceRank"></ul>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Dashboard -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <div class="kicker">Data Dashboard</div>
+        <h2>Collection dashboard</h2>
+      </div>
+      <span class="mono muted" id="dashHint"></span>
+    </div>
+    <div class="chart-card">
+      <h4>Daily volume, last 30 days</h4>
+      <div class="hint">Records captured per publication date (UTC).</div>
+      <div id="trendChart"></div>
+      <div class="legend"><span><i style="background:#c8102e"></i>Records per day</span></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="data/news.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var CW = window.CW, S = CW.STATS, items = CW.ITEMS;
+
+  CW.mountChrome("home");
+
+  /* ---------- Hero ---------- */
+  var ranked = items.slice().sort(function (a, b) {
+    if (b.severity_score !== a.severity_score) return b.severity_score - a.severity_score;
+    return new Date(b.published) - new Date(a.published);
+  });
+  var feature = ranked[0], side = ranked.slice(1, 5);
+
+  if (feature) {
+    document.getElementById("hero").innerHTML =
+      '<a class="hero-feature" href="' + CW.itemUrl(feature) + '">' +
+      CW.coverHtml(feature, "", feature.country || feature.region) +
+      '<div class="meta" style="margin-top:14px"><span class="kicker plain" style="color:#c8102e">Priority Alert</span>' +
+      '<i class="sep"></i><span>' + CW.esc(feature.source) + '</span><i class="sep"></i><span>' +
+      CW.esc(CW.timeAgo(feature.published)) + '</span></div>' +
+      '<h1>' + CW.esc(feature.title) + '</h1>' +
+      '<p class="sum">' + CW.esc(feature.summary) + '</p>' +
+      CW.tagsHtml(feature, true) + '</a>' +
+      '<div class="hero-side">' +
+      side.map(function (it) {
+        return '<div class="mini"><a href="' + CW.itemUrl(it) + '">' +
+          CW.coverHtml(it, "", "").replace('class="cover "', 'class="cover"') + '</a>' +
+          '<div><div class="meta" style="margin-bottom:4px"><span>' + CW.esc(it.region) +
+          '</span><i class="sep"></i><span>' + CW.esc(CW.timeAgo(it.published)) + '</span></div>' +
+          '<h3><a href="' + CW.itemUrl(it) + '">' + CW.esc(it.title) + '</a></h3>' +
+          CW.tagsHtml(it, false) + '</div></div>';
+      }).join("") + '</div>';
+  }
+
+  /* ---------- Headline numbers ---------- */
+  var high = items.filter(function (i) { return i.severity_score >= 2; }).length;
+  document.getElementById("stats").innerHTML = [
+    ["Records tracked", S.total || 0, "Collected over the last 90 days"],
+    ["Reported fatalities", S.fatalities || 0, "Only where a figure is stated"],
+    ["Countries / areas", S.countries || 0, "From " + (S.sources || 0) + " public sources"],
+    ["High-severity incidents", high, "15+ killed or mass-casualty wording"]
+  ].map(function (c) {
+    return '<div class="stat"><b>' + c[1] + '</b><span>' + c[0] + '</span><small>' + c[2] + '</small></div>';
+  }).join("");
+
+  /* ---------- Region cards ---------- */
+  var regions = CW.REGION_ORDER.filter(function (r) { return (S.by_region || {})[r]; });
+  var rmax = Math.max.apply(null, regions.map(function (r) { return S.by_region[r]; }).concat([1]));
+  var REGION_EN = {
+    "Sahel": "Sahel belt",
+    "West Africa": "West Africa",
+    "Horn of Africa": "Horn of Africa",
+    "Central Africa": "Central Africa",
+    "North Africa": "North Africa",
+    "Southern Africa": "Southern Africa"
+  };
+  document.getElementById("regionGrid").innerHTML = regions.map(function (r) {
+    var n = S.by_region[r];
+    return '<a class="region-card" href="regions.html?region=' + encodeURIComponent(r) + '">' +
+      '<div class="rc-top"><h3>' + r + '</h3><span class="rc-en">' + REGION_EN[r] + '</span></div>' +
+      '<div class="rc-num" style="color:' + CW.regionColor(r) + '">' + n + '</div>' +
+      '<div class="rc-sub">records &middot; ' + Math.round((n / (S.total || 1)) * 100) + '% of the board</div>' +
+      '<div class="rc-bar"><i style="width:' + (n / rmax * 100) + '%;background:' + CW.regionColor(r) + '"></i></div>' +
+      '</a>';
+  }).join("");
+
+  /* ---------- Latest feed ---------- */
+  document.getElementById("latestFeed").innerHTML = CW.feedHtml(items.slice(0, 12));
+
+  /* ---------- Sidebar rankings ---------- */
+  var countries = Object.keys(S.by_country || {}).slice(0, 8);
+  var cmax = Math.max.apply(null, countries.map(function (c) { return S.by_country[c]; }).concat([1]));
+  document.getElementById("countryRank").innerHTML = countries.map(function (c) {
+    return '<li><div class="row"><span>' + CW.esc(c) + '</span><b>' + S.by_country[c] + '</b></div>' +
+      '<div class="bar"><i style="width:' + (S.by_country[c] / cmax * 100) + '%"></i></div></li>';
+  }).join("");
+
+  var srcs = Object.keys(S.by_source || {}).slice(0, 6);
+  var smax = Math.max.apply(null, srcs.map(function (c) { return S.by_source[c]; }).concat([1]));
+  document.getElementById("sourceRank").innerHTML = srcs.map(function (c) {
+    return '<li><div class="row"><span>' + CW.esc(c) + '</span><b>' + S.by_source[c] + '</b></div>' +
+      '<div class="bar"><i style="width:' + (S.by_source[c] / smax * 100) + '%;background:#3d3731"></i></div></li>';
+  }).join("");
+
+  /* ---------- Charts ---------- */
+  document.getElementById("catChart").innerHTML = CW.catBarsSvg();
+  document.getElementById("trendChart").innerHTML = CW.trendSvg(30);
+  document.getElementById("dashHint").textContent =
+    "Updated " + CW.fmtDateTime(S.updated_at) + " · " + (S.total || 0) + " records";
+})();
+</script>
+</body>
+</html>

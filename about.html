@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Methodology &amp; Sources — Crisis Watch Africa</title>
+<meta name="description" content="How records are collected, classified and geo-tagged; the source list; and the limits of the data.">
+<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+
+<main class="wrap">
+  <div style="padding:34px 0 10px">
+    <div class="kicker">Methodology</div>
+    <h1 style="font-family:var(--font-serif);font-size:clamp(28px,3.4vw,40px);margin:10px 0 8px;font-weight:700;letter-spacing:-.015em">
+      How this board is built
+    </h1>
+  </div>
+
+  <div class="cols" style="padding-top:20px">
+    <div class="prose">
+      <h3>What it is</h3>
+      <p>
+        Crisis Watch Africa is an automated conflict early-warning board. A collector visits a set
+        of public RSS and Atom feeds on a schedule, keeps the reporting that is security-related and
+        African, files it under <strong>terrorism, armed conflict or kidnapping &amp; abduction</strong>,
+        tags country and region, extracts reported casualties and scores severity, then writes a
+        static data file that the site renders.
+      </p>
+
+      <h3>Collection pipeline</h3>
+      <ul>
+        <li><strong>Fetch</strong> — pull 40+ public feeds concurrently: pan-African outlets,
+            national media, think tanks and specialist conflict desks.</li>
+        <li><strong>Clean</strong> — strip markup and illegal XML characters, parse publication
+            times into UTC, discard anything older than 90 days.</li>
+        <li><strong>De-duplicate</strong> — normalise the headline into a fingerprint so the same
+            story syndicated by several outlets is stored once.</li>
+        <li><strong>Geo-tag</strong> — match a country lexicon longest-name-first (so "Niger" never
+            wins over "Nigeria"), then fall back to regional terms and the feed's default country.</li>
+        <li><strong>Classify</strong> — weighted keyword scoring with the priority
+            kidnapping &gt; terrorism &gt; conflict. Stories that carry security wording but none of
+            the three categories land in "Other security news".</li>
+        <li><strong>Full text</strong> — feeds that publish the whole article inside
+            <span class="mono">content:encoded</span> are stored as-is; for the rest the collector
+            visits the article page and pulls the paragraphs out. Results are cached in
+            <span class="mono">data/bodies.json</span> so a story is never fetched twice.</li>
+        <li><strong>Extract casualties</strong> — regex patterns for phrasings such as
+            "at least 12 killed" or "death toll rises to 30", read from the headline and the
+            opening of the article; only figures actually printed are used.</li>
+      </ul>
+
+      <h3>Category definitions</h3>
+      <table class="src">
+        <tr><th>Category</th><th>Trigger terms (extract)</th></tr>
+        <tr><td><span class="tag" style="color:#B91C1C">Terrorism</span></td>
+            <td>jihadist, Boko Haram, ISWAP, al-Shabaab, JNIM, ISGS, ISIS, IED, insurgent, suicide bomber</td></tr>
+        <tr><td><span class="tag" style="color:#C2410C">Armed Conflict</span></td>
+            <td>clashes, offensive, airstrike, militia, rebel, ambush, RSF, massacre, coup, displaced</td></tr>
+        <tr><td><span class="tag" style="color:#7C3AED">Kidnapping</span></td>
+            <td>kidnap, abduct, hostage, ransom, captive, bandits, schoolchildren, in captivity</td></tr>
+      </table>
+
+      <h3>Regional split</h3>
+      <p>
+        Follows the convention used by most conflict-research organisations: the
+        <strong>Sahel</strong> (Mali, Burkina Faso, Niger, Chad, Mauritania),
+        <strong>West Africa</strong>, the <strong>Horn of Africa</strong> (including Sudan, South
+        Sudan, Somalia, Ethiopia, Kenya and Uganda), <strong>Central Africa</strong> (including DR
+        Congo, the Central African Republic and Cameroon), <strong>North Africa</strong> and
+        <strong>Southern Africa</strong>.
+      </p>
+
+      <h3>Known limitations</h3>
+      <ul>
+        <li>Coverage follows the openness of the sources. Remote conflict zones are under-reported,
+            so a low count means low coverage, not low risk.</li>
+        <li>Keyword classification misfires, especially when one incident is both a terrorist
+            attack and an abduction.</li>
+        <li>Casualty figures come from media reporting; the parties disagree and numbers are
+            revised as events unfold.</li>
+        <li>Headlines and summaries are reproduced from the source (mostly in English, sometimes
+            French or Spanish). Nothing here is translated or independently verified.</li>
+        <li>A minority of records only carry a short teaser, because the publisher blocks
+            automated readers or exposes nothing but an excerpt in its feed. Those are marked
+            "not available" on the record page and link straight to the original.</li>
+      </ul>
+
+      <h3>Refreshing the data</h3>
+      <p>Run the collector from the project root; the pages do not need rebuilding:</p>
+      <p class="mono" style="background:var(--paper-3);padding:12px 14px;border-left:3px solid var(--red);font-size:13px">
+        python scraper/scrape.py
+      </p>
+      <p>It writes <span class="mono">data/news.json</span> and <span class="mono">data/news.js</span>,
+      and appends the daily tally to <span class="mono">data/history.json</span>.</p>
+    </div>
+
+    <aside>
+      <div class="side-block">
+        <h4>This collection</h4>
+        <div id="overview"></div>
+      </div>
+      <div class="side-block">
+        <h4>Source list</h4>
+        <ul class="rank" id="srcList"></ul>
+      </div>
+      <div class="side-block">
+        <h4>Regional mix</h4>
+        <ul class="rank" id="regList"></ul>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script src="data/news.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var CW = window.CW, S = CW.STATS;
+  CW.mountChrome("about");
+
+  document.getElementById("overview").innerHTML =
+    '<div class="mono muted" style="font-size:12px">Last update</div>' +
+    '<div style="font-size:14px;margin-bottom:12px">' + CW.fmtDateTime(S.updated_at) + '</div>' +
+    [["Records", S.total], ["Countries", S.countries], ["Sources", S.sources], ["Reported killed", S.fatalities]]
+      .map(function (c) {
+        return '<div class="row" style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13.5px">' +
+          '<span class="muted">' + c[0] + '</span><b>' + (c[1] || 0) + '</b></div>';
+      }).join("");
+
+  var srcs = Object.keys(S.by_source || {});
+  var smax = Math.max.apply(null, srcs.map(function (k) { return S.by_source[k]; }).concat([1]));
+  document.getElementById("srcList").innerHTML = srcs.map(function (k) {
+    return '<li><div class="row"><span>' + CW.esc(k) + '</span><b>' + S.by_source[k] + '</b></div>' +
+      '<div class="bar"><i style="width:' + (S.by_source[k] / smax * 100) + '%;background:#3d3731"></i></div></li>';
+  }).join("");
+
+  var regs = CW.REGION_ORDER.filter(function (r) { return (S.by_region || {})[r]; });
+  var rmax = Math.max.apply(null, regs.map(function (r) { return S.by_region[r]; }).concat([1]));
+  document.getElementById("regList").innerHTML = regs.map(function (r) {
+    return '<li><div class="row"><span>' + r + '</span><b>' + S.by_region[r] + '</b></div>' +
+      '<div class="bar"><i style="width:' + (S.by_region[r] / rmax * 100) + '%;background:' +
+      CW.regionColor(r) + '"></i></div></li>';
+  }).join("");
+})();
+</script>
+</body>
+</html>

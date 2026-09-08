@@ -1,0 +1,3 @@
+# One public address per line. Lines starting with # are ignored.
+# Left blank until a git remote is configured - see setup-publish.bat
+# https://ff8b1555b5e84f65b33073d57915b25b.app.workbuddy.link  (manual snapshot only)

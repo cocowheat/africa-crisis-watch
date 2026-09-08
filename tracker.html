@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crisis Tracker — Crisis Watch Africa</title>
+<meta name="description" content="Search and filter African terrorism, armed conflict and kidnapping reports by type, region, country, date and source.">
+<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+
+<main class="wrap">
+  <div style="padding:34px 0 8px">
+    <div class="kicker">Crisis Tracker</div>
+    <h1 style="font-family:var(--font-serif);font-size:clamp(28px,3.4vw,40px);margin:10px 0 8px;font-weight:700;letter-spacing:-.015em">
+      Africa crisis tracker
+    </h1>
+    <p class="muted" style="margin:0;max-width:70ch">
+      Every record is collected automatically from public RSS feeds, then classified by keyword
+      and tagged geographically. Open a headline for the source link and the incident breakdown.
+    </p>
+  </div>
+
+  <div class="toolbar">
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="catChips"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="regionChips"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+      <select id="countrySel" class="chip" style="border-radius:0"></select>
+      <select id="daysSel" class="chip" style="border-radius:0">
+        <option value="0">All dates</option>
+        <option value="3">Last 3 days</option>
+        <option value="7">Last 7 days</option>
+        <option value="30">Last 30 days</option>
+      </select>
+      <select id="sortSel" class="chip" style="border-radius:0">
+        <option value="new">Newest first</option>
+        <option value="sev">Severity first</option>
+      </select>
+    </div>
+  </div>
+
+  <p class="muted" id="resultInfo" style="font-size:13px;margin:14px 0 0"></p>
+
+  <ul class="feed" id="feed" style="margin-top:6px"></ul>
+  <button class="btn btn-ghost loadmore" id="more" style="display:none">Load more</button>
+</main>
+
+<script src="data/news.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var CW = window.CW;
+  CW.mountChrome("tracker");
+
+  var PAGE = 20;
+  var state = {
+    category: "all",
+    region: "all",
+    country: "all",
+    days: 0,
+    sort: "new",
+    q: CW.getParam("q") || "",
+    limit: PAGE
+  };
+  if (CW.getParam("cat")) state.category = CW.getParam("cat");
+  if (CW.getParam("region")) state.region = CW.getParam("region");
+
+  function counts(key) {
+    var m = {};
+    CW.ITEMS.forEach(function (it) { m[it[key]] = (m[it[key]] || 0) + 1; });
+    return m;
+  }
+  var catCount = counts("category"), regionCount = counts("region");
+
+  document.getElementById("catChips").innerHTML = CW.chipsHtml(
+    [{ v: "all", label: "All types", n: CW.ITEMS.length }].concat(
+      CW.CAT_ORDER.filter(function (c) { return catCount[c]; }).map(function (c) {
+        return { v: c, label: CW.catLabel(c), n: catCount[c] };
+      })
+    ), state.category, "cat");
+
+  document.getElementById("regionChips").innerHTML = CW.chipsHtml(
+    [{ v: "all", label: "All regions", n: CW.ITEMS.length }].concat(
+      CW.REGION_ORDER.filter(function (r) { return regionCount[r]; }).map(function (r) {
+        return { v: r, label: r, n: regionCount[r] };
+      })
+    ), state.region, "region");
+
+  var csel = document.getElementById("countrySel");
+  var countries = {};
+  CW.ITEMS.forEach(function (it) { if (it.country) countries[it.country] = (countries[it.country] || 0) + 1; });
+  csel.innerHTML = '<option value="all">All countries</option>' +
+    Object.keys(countries).sort(function (a, b) { return countries[b] - countries[a]; })
+      .map(function (c) {
+        return '<option value="' + CW.esc(c) + '">' + CW.esc(c) + " (" + countries[c] + ")</option>";
+      }).join("");
+  if (CW.getParam("country")) { csel.value = CW.getParam("country"); state.country = csel.value; }
+
+  function render() {
+    var list = CW.filterItems(state);
+    if (state.sort === "sev") {
+      list.sort(function (a, b) {
+        if (b.severity_score !== a.severity_score) return b.severity_score - a.severity_score;
+        if (b.fatalities !== a.fatalities) return b.fatalities - a.fatalities;
+        return new Date(b.published) - new Date(a.published);
+      });
+    }
+    document.getElementById("resultInfo").innerHTML =
+      "<b>" + list.length + "</b> records" +
+      (state.q ? ' matching &ldquo;<b>' + CW.esc(state.q) + "</b>&rdquo;" : "") +
+      (state.region !== "all" ? " in " + CW.esc(state.region) : "") +
+      (state.category !== "all" ? " · " + CW.catLabel(state.category) : "");
+
+    document.getElementById("feed").innerHTML = CW.feedHtml(list.slice(0, state.limit));
+    document.getElementById("more").style.display = list.length > state.limit ? "block" : "none";
+  }
+
+  function syncChips(id, attr, val) {
+    Array.prototype.forEach.call(document.getElementById(id).children, function (c) {
+      c.classList.toggle("on", c.getAttribute("data-" + attr) === val);
+    });
+  }
+
+  document.getElementById("catChips").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-cat]"); if (!b) return;
+    state.category = b.getAttribute("data-cat"); state.limit = PAGE;
+    syncChips("catChips", "cat", state.category); render();
+  });
+  document.getElementById("regionChips").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-region]"); if (!b) return;
+    state.region = b.getAttribute("data-region"); state.limit = PAGE;
+    syncChips("regionChips", "region", state.region); render();
+  });
+  csel.addEventListener("change", function () { state.country = csel.value; state.limit = PAGE; render(); });
+  document.getElementById("daysSel").addEventListener("change", function () {
+    state.days = +this.value; state.limit = PAGE; render();
+  });
+  document.getElementById("sortSel").addEventListener("change", function () { state.sort = this.value; render(); });
+  document.getElementById("more").addEventListener("click", function () { state.limit += PAGE; render(); });
+
+  render();
+})();
+</script>
+</body>
+</html>

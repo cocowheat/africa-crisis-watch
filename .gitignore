@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+scraper/__pycache__/
+update.log
+.DS_Store
+data/bodies.json

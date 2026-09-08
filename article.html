@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Incident Record — Crisis Watch Africa</title>
+<meta name="description" content="Incident detail: classification, geography, reported casualties, source link and related records.">
+<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+
+<main class="wrap" id="main"></main>
+
+<script src="data/news.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var CW = window.CW;
+  var it = CW.byId(CW.getParam("id"));
+  document.title = (it ? it.title.slice(0, 60) + " — " : "") + "Crisis Watch Africa";
+  CW.mountChrome("tracker");
+
+  if (!it) {
+    document.getElementById("main").innerHTML =
+      '<div class="empty">This record was not found; a newer collection run may have replaced it.' +
+      '<div style="margin-top:16px"><a class="btn" href="tracker.html">Back to the tracker</a></div></div>';
+    return;
+  }
+
+  var related = CW.ITEMS.filter(function (o) {
+    return o.id !== it.id && o.category === it.category;
+  }).slice(0, 6);
+
+  var bodyLen = (it.body || "").length;
+  var bodyBlock = bodyLen > 200
+    ? '<div class="body-head"><h4>Full report</h4><span>' + bodyLen +
+      ' characters · via ' + CW.esc(it.source) + '</span></div>' + CW.bodyHtml(it)
+    : '<div class="body-head"><h4>Full report</h4><span>not available</span></div>' +
+      '<p class="muted" style="margin:0 0 26px">This publisher only syndicates a short teaser in ' +
+      'its feed, so no full text was captured. Use the button above to read the original article.</p>';
+
+  document.getElementById("main").innerHTML =
+    '<article class="article">' +
+    '<div class="kicker">' + CW.catLabel(it.category) + '</div>' +
+    '<h1>' + CW.esc(it.title) + '</h1>' +
+    '<div class="meta" style="margin-bottom:18px">' +
+    '<span>' + CW.esc(it.source) + '</span><i class="sep"></i>' +
+    '<span>' + CW.esc(CW.fmtDateTime(it.published)) + '</span><i class="sep"></i>' +
+    '<span>' + CW.esc(CW.timeAgo(it.published)) + '</span>' +
+    '</div>' +
+    CW.coverHtml(it, "", it.country || it.region) +
+    '<p class="lede" style="margin-top:22px">' + CW.esc(it.summary) + '</p>' +
+    '<div class="factbox"><h5>Incident breakdown</h5><dl>' +
+    '<dt>Category</dt><dd><span class="tag" style="color:' + CW.catColor(it.category) + '">' +
+    CW.catLabel(it.category) + '</span></dd>' +
+    '<dt>Region</dt><dd>' + CW.esc(it.region || "Unspecified") + '</dd>' +
+    '<dt>Country</dt><dd>' + CW.esc(it.country || "No country named in the headline or summary") + '</dd>' +
+    '<dt>Reported killed</dt><dd>' + (it.fatalities > 0 ? '<b class="fat">' + it.fatalities +
+    '</b> (as reported)' : "No figure stated in the report") + '</dd>' +
+    '<dt>Severity</dt><dd>' + CW.esc(it.severity) + '</dd>' +
+    '<dt>Source</dt><dd>' + CW.esc(it.source) + '</dd>' +
+    '<dt>Published</dt><dd>' + CW.esc(CW.fmtDateTime(it.published)) + ' (UTC)</dd>' +
+    '</dl>' +
+    '<div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">' +
+    '<a class="btn" href="' + CW.esc(it.url) + '" target="_blank" rel="noopener">Read the original &rarr;</a>' +
+    '<a class="btn btn-ghost" href="tracker.html?cat=' + it.category + '">Same category</a>' +
+    '<a class="btn btn-ghost" href="regions.html?region=' + encodeURIComponent(it.region) + '">' +
+    CW.esc(it.region) + ' profile</a>' +
+    '</div></div>' +
+    bodyBlock +
+    '<p class="muted" style="font-size:12.5px;border-top:1px solid var(--line);padding-top:14px">' +
+    'This is an automated aggregation. The headline and summary are reproduced from the source ' +
+    'without editing, and the casualty figure is extracted from the text, so it only reflects ' +
+    'what the report said at the time. Always defer to the original article.</p>' +
+    '<div style="border-top:2px solid var(--ink);padding-top:14px;margin-top:34px">' +
+    '<h4 style="margin:0 0 6px;font-size:12px;letter-spacing:.16em;text-transform:uppercase">' +
+    'Related records · ' + CW.catLabel(it.category) + '</h4></div>' +
+    '<ul class="feed">' + CW.feedHtml(related) + '</ul>' +
+    '<div style="margin:30px 0"><a class="btn btn-ghost" href="tracker.html">&larr; Back to the tracker</a></div>' +
+    '</article>';
+})();
+</script>
+</body>
+</html>
