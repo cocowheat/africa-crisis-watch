@@ -57,6 +57,13 @@ if errorlevel 1 (
 
 git push
 if errorlevel 1 (
+  echo   First attempt did not go through, retrying in 5 seconds...
+  timeout /t 5 >nul
+  git pull --rebase >nul 2>&1
+  if errorlevel 1 git rebase --abort >nul 2>&1
+  git push
+)
+if errorlevel 1 (
   echo.
   echo   PUSH FAILED. The local data is fine, but the public site
   echo   was not updated. Check your network or git credentials.
